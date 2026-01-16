@@ -19,9 +19,20 @@ classifiers = [
 
 dependencies = []
 
+[project.optional-dependencies]
+ormsgpack = [
+    "ormsgpack>=1.12.1",
+]
+orjson = [
+    "orjson>=3.11.5",
+]
+
 [build-system]
 requires = ["uv_build"]
 build-backend = "uv_build"
+
+[pytest]
+addopts = ["--import-mode=importlib"]
 
 [tool.ruff]
 line-length = 100
@@ -32,7 +43,7 @@ select = [
 	"RET", "YTT", "ANN", "ASYNC", "S", "C4", "DTZ","LOG", "ICN", "TID", "PL",
 	"G","PIE","ARG","PTH","R","PERF","FURB","RUF", "PYI", "FLY", "TRY"
 ]
-ignore = ["RET501"]
+ignore = ["RET501", "S101", "PLR2004"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -49,3 +60,10 @@ strictDictionaryInference = true
 strictSetInference = true
 deprecateTypingAliases = true
 enableReachabilityAnalysis = true
+
+[dependency-groups]
+dev = [
+    "orjson>=3.11.5",
+    "ormsgpack>=1.12.1",
+    "pytest>=9.0.2",
+]
