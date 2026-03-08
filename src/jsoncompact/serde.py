@@ -63,16 +63,14 @@ class BinaryIterator:
 
 
 class Serializer:
-    SUB_COMPACT_ITERABLES: bool
-    SUB_COMPACT_MAPPINGS: bool
+    COMPACT_ITERABLES: bool
+    COMPACT_MAPPINGS: bool
 
     def __init__(self) -> None:
-        self.SUB_COMPACT_ITERABLES = True
-        self.SUB_COMPACT_MAPPINGS = True
+        self.COMPACT_ITERABLES = True
+        self.COMPACT_MAPPINGS = True
 
-    def serialize(
-        self, value: PyJsonType, schema: JsonSchema
-    ) -> tuple[bytes, list]:
+    def serialize(self, value: PyJsonType, schema: JsonSchema) -> tuple[bytes, list[PyJsonType]]:
         field_list = BinaryCounter()
         data_list = []
         if not isinstance(schema, dict):
@@ -113,16 +111,20 @@ class Serializer:
         data_list: list[PyJsonType],
     ) -> None:
         if var:
+            field_list.add_pos()
+            if not self.COMPACT_ITERABLES:
+                self.serialize_var(var, None, schema_defs, field_list, data_list)
+                return None
             sub_type = var_schema.get("items")
             if not isinstance(sub_type, dict):
                 sub_type = None
-            field_list.add_pos()
+
             data_list.append(0)
             data_len = len(data_list)
             i = 0
             for v in var:
                 i += 1
-                if self.SUB_COMPACT_ITERABLES and sub_type is not None:
+                if self.COMPACT_ITERABLES and sub_type is not None:
                     self.serialize_var(v, sub_type, schema_defs, field_list, data_list)
                 else:
                     data_list.append(v)
@@ -139,21 +141,25 @@ class Serializer:
         data_list: list[PyJsonType],
     ) -> None:
         if var:
+            field_list.add_pos()
+            if not self.COMPACT_MAPPINGS:
+                self.serialize_var(var, None, schema_defs, field_list, data_list)
+                return None
             sub_type = var_schema.get("additionalProperties")
             if not isinstance(sub_type, dict):
                 sub_type = None
-            field_list.add_pos()
             data_list.append(0)
             data_len = len(data_list)
             i = 0
             for k, v in var.items():
                 i += 1
                 data_list.append(k)
-                if self.SUB_COMPACT_MAPPINGS and sub_type is not None:
+                if self.COMPACT_MAPPINGS and sub_type is not None:
                     self.serialize_var(v, sub_type, schema_defs, field_list, data_list)
                 else:
                     data_list.append(v)
             data_list[data_len - 1] = i
+            return None
         field_list.add_neg()
 
     def serialize_var(
@@ -192,19 +198,19 @@ class Serializer:
 
 
 class Deserializer:
-    SUB_COMPACT_ITERABLES: bool
-    SUB_COMPACT_MAPPINGS: bool
+    COMPACT_ITERABLES: bool
+    COMPACT_MAPPINGS: bool
 
     def __init__(self) -> None:
-        self.SUB_COMPACT_ITERABLES = True
-        self.SUB_COMPACT_MAPPINGS = True
+        self.COMPACT_ITERABLES = True
+        self.COMPACT_MAPPINGS = True
 
     def deserialize(self, field_list: bytes, data_list: list, schema: JsonSchema) -> PyJsonType:
         if not isinstance(schema, dict):
             schema = None
             defs = {}
         else:
-            defs:dict[str, dict] = schema.get("$defs", {}) # type: ignore
+            defs: dict[str, dict] = schema.get("$defs", {})  # type: ignore
         binary_iterator = BinaryIterator(field_list)
         return self.deserialize_var(schema, defs, binary_iterator, deque(data_list))
 
@@ -223,7 +229,7 @@ class Deserializer:
             field_bool = field_list.pop_bool()
             if field_bool:
                 model_data[fieldname] = self.deserialize_var(
-                    field_schema, # type: ignore
+                    field_schema,  # type: ignore
                     schema_defs,
                     field_list,
                     data_list,
@@ -265,8 +271,10 @@ class Deserializer:
         if not field_bool:
             return []
         datalen = data_list.popleft()
+        if not self.COMPACT_ITERABLES:
+            return datalen  # type: ignore
         if not isinstance(datalen, int):
-            err = f"Expected integer for oject length encoding, instead found {type(datalen)}"
+            err = f"Expected integer for object length encoding, instead found {type(datalen)}"
             raise TypeError(err)
         sub_type = var_schema.get("items")
         if not isinstance(sub_type, dict):
@@ -286,14 +294,16 @@ class Deserializer:
         field_bool = field_list.pop_bool()
         if not field_bool:
             return {}
-        data = {}
-        sub_type = var_schema.get("additionalProperties")
-        if not isinstance(sub_type, dict):
-            sub_type = None
         datalen = data_list.popleft()
+        if not self.COMPACT_MAPPINGS:
+            return datalen  # type: ignore
         if not isinstance(datalen, int):
             err = f"Expected integer for oject length encoding, instead found {type(datalen)}"
             raise TypeError(err)
+        sub_type = var_schema.get("additionalProperties")
+        if not isinstance(sub_type, dict):
+            sub_type = None
+        data = {}
         for _ in range(datalen):
             key = self.deserialize_var(None, schema_defs, field_list, data_list)
             data[key] = self.deserialize_var(sub_type, schema_defs, field_list, data_list)
