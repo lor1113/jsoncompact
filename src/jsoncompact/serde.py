@@ -1,10 +1,12 @@
 from collections import deque
 
-from jsoncompact.types import JsonSchema, PyJsonType
+from .settings import COMPACT_ITERABLES, COMPACT_MAPPINGS, USE_DEFAULTS
+from .types import JsonSchema, PyJsonType
 
 # Note on use of type:ignore - aspects of JSON schemas do not have explicit type checks due to
-# being presumed are valid. Validation of JSON schemas is outside the scope of this library.
+# being presumed valid. Validation of JSON schemas is outside the scope of this library.
 # Type checks are only for data that is being encoded/decoded.
+
 
 BYTELEN = 8
 
@@ -65,10 +67,12 @@ class BinaryIterator:
 class Serializer:
     COMPACT_ITERABLES: bool
     COMPACT_MAPPINGS: bool
+    USE_DEFAULTS: bool
 
     def __init__(self) -> None:
-        self.COMPACT_ITERABLES = True
-        self.COMPACT_MAPPINGS = True
+        self.COMPACT_ITERABLES = COMPACT_ITERABLES
+        self.COMPACT_MAPPINGS = COMPACT_MAPPINGS
+        self.USE_DEFAULTS = USE_DEFAULTS
 
     def serialize(self, value: PyJsonType, schema: JsonSchema) -> tuple[bytes, list[PyJsonType]]:
         field_list = BinaryCounter()
@@ -173,12 +177,20 @@ class Serializer:
         if var_schema is None:
             data_list.append(var)
             return None
+
+        if self.USE_DEFAULTS and "default" in var_schema:
+            if var == var_schema["default"]:
+                field_list.add_neg()
+                return None
+            field_list.add_pos()
+
         if "$ref" in var_schema:
             ref = var_schema["$ref"].removeprefix("#/$defs/")  # type: ignore
             if ref not in schema_defs:
                 err = f"Could not find definition for ref {ref}"
                 raise ValueError(err)
             var_schema = schema_defs[ref]
+
         var_type = var_schema.get("type")
         if var_type == "object":
             if not isinstance(var, dict):
@@ -200,10 +212,12 @@ class Serializer:
 class Deserializer:
     COMPACT_ITERABLES: bool
     COMPACT_MAPPINGS: bool
+    USE_DEFAULTS: bool
 
     def __init__(self) -> None:
-        self.COMPACT_ITERABLES = True
-        self.COMPACT_MAPPINGS = True
+        self.COMPACT_ITERABLES = COMPACT_ITERABLES
+        self.COMPACT_MAPPINGS = COMPACT_MAPPINGS
+        self.USE_DEFAULTS = USE_DEFAULTS
 
     def deserialize(self, field_list: bytes, data_list: list, schema: JsonSchema) -> PyJsonType:
         if not isinstance(schema, dict):
@@ -245,6 +259,8 @@ class Deserializer:
     ) -> PyJsonType:
         if var_schema is None:
             return data_list.popleft()
+        if self.USE_DEFAULTS and "default" in var_schema and not field_list.pop_bool():
+            return var_schema["default"]
         if "$ref" in var_schema:
             ref = var_schema["$ref"].removeprefix("#/$defs/")  # type: ignore
             if ref not in schema_defs:

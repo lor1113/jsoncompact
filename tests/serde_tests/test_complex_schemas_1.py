@@ -3,17 +3,15 @@ from jsoncompact.serde import Deserializer, Serializer
 SCHEMA = {
     "$defs": {
         "TestModel1": {
-            "properties": {"string": {"title": "String", "type": "string"}},
+            "properties": {"string": {"type": "string"}},
             "required": ["string"],
-            "title": "TestModel1",
             "type": "object",
         }
     },
     "properties": {
-        "var": {"items": {"$ref": "#/$defs/TestModel1"}, "title": "Var", "type": "array"}
+        "var": {"items": {"$ref": "#/$defs/TestModel1"}, "type": "array"}
     },
     "required": ["var"],
-    "title": "TestModel2",
     "type": "object",
 }
 

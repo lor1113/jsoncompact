@@ -1,11 +1,4 @@
-from .main import (
-    deserialize,
-    deserialize_json,
-    deserialize_orjson,
-    serialize,
-    serialize_json,
-    serialize_orjson,
-)
+from .main import deserialize, deserialize_json, serialize, serialize_json
 from .serde import Deserializer, Serializer
 
 __all__ = [
@@ -13,8 +6,6 @@ __all__ = [
     "Serializer",
     "deserialize",
     "deserialize_json",
-    "deserialize_orjson",
     "serialize",
     "serialize_json",
-    "serialize_orjson",
 ]
