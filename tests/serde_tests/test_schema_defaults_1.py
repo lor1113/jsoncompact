@@ -31,3 +31,19 @@ def test_default_schema_4(serializer: Serializer, deserializer: Deserializer) ->
     s1, s2 = serializer.serialize(test_var, schema)
     deserialized = deserializer.deserialize(s1, s2, schema)
     assert deserialized == test_var
+
+
+def test_default_schema_5(serializer: Serializer, deserializer: Deserializer) -> None:
+    schema = {"default": True, "type": "boolean"}
+    test_var = False
+    s1, s2 = serializer.serialize(test_var, schema)
+    deserialized = deserializer.deserialize(s1, s2, schema)
+    assert deserialized == test_var
+
+
+def test_default_schema_6(serializer: Serializer, deserializer: Deserializer) -> None:
+    schema = {"default": True, "type": "boolean"}
+    test_var = True
+    s1, s2 = serializer.serialize(test_var, schema)
+    deserialized = deserializer.deserialize(s1, s2, schema)
+    assert deserialized == test_var
